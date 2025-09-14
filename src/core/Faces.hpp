@@ -5,7 +5,7 @@
 //
 // Faces.hpp
 //
-// Written by: <Your Name>
+// Written by: Rundong He
 //
 // Software developed for the course
 // Digital Geometry Processing
@@ -89,8 +89,19 @@ public:
 
 private:
 
-  // TODO
+  int _nV;  // Number of vertices
+  int _nF;  // Number of faces
 
+  // Same as the parameter of the constructor except that separators
+  // decrease on value (-1, -2, ...)
+  vector<int> _coordIndex;
+
+  // startPosition[iF] returns the first index of a vertex of the face
+  // indexed by iF
+  vector<int> _startPosition;
+
+  bool    notValidFaceIndex(const int iF)          const;
+  bool    notValidCornerIndex(const int iC)        const;
 };
 
 #endif /* _FACES_HPP_ */

@@ -5,7 +5,7 @@
 //
 // SaverStl.cpp
 //
-// Written by: <Your Name>
+// Written by: Rundong He
 //
 // Software developed for the course
 // Digital Geometry Processing
@@ -43,6 +43,10 @@
 
 #include "core/Faces.hpp"
 
+// debugging
+#include <iostream>
+#define DBG(x) cout << #x << " = " << x << endl;
+
 const char* SaverStl::_ext = "stl";
 
 //////////////////////////////////////////////////////////////////////
@@ -51,17 +55,32 @@ bool SaverStl::save(const char* filename, SceneGraph& wrl) const {
   if(filename!=(char*)0) {
 
     // Check these conditions
+    #define check(condition) if (not (condition)) return false;
 
     // 1) the SceneGraph should have a single child
+    check(wrl.getNumberOfChildren() == 1);
+
     // 2) the child should be a Shape node
+    auto it = wrl.getChildren().begin();
+    pNode child = *it;
+    check(child->isShape());
+
     // 3) the geometry of the Shape node should be an IndexedFaceSet node
+    Shape* shape = static_cast<Shape*>(child);
+    pNode shapeGeometry = shape->getGeometry();
+    check(shapeGeometry->isIndexedFaceSet());
 
     // - construct an instance of the Faces class from the IndexedFaceSet
     // - remember to delete it when you are done with it (if necessary)
     //   before returning
+    IndexedFaceSet* indexedFaceSet = static_cast<IndexedFaceSet*>(shapeGeometry);
+    Faces faces(0xdeadbeef, indexedFaceSet->getCoordIndex());
 
     // 4) the IndexedFaceSet should be a triangle mesh
+    check(indexedFaceSet->isTriangleMesh());
+
     // 5) the IndexedFaceSet should have normals per face
+    check(not indexedFaceSet->getNormalPerVertex());
 
     // if (all the conditions are satisfied) {
 
@@ -78,13 +97,50 @@ bool SaverStl::save(const char* filename, SceneGraph& wrl) const {
       // for each face {
       //   ...
       // }
-      
+      for (int iF = 0; iF < faces.getNumberOfFaces(); ++iF) {
+
+        int c1 = faces.getFaceFirstCorner(iF),
+            c2 = faces.getNextCorner(c1),
+            c3 = faces.getNextCorner(c2);
+        
+        int v1 = faces.getFaceVertex(iF, c1),
+            v2 = faces.getFaceVertex(iF, c2),
+            v3 = faces.getFaceVertex(iF, c3);
+
+        // DBG(iF) DBG(c1) DBG(c2) DBG(c3) DBG(v1) DBG(v2) DBG(v3);
+
+        vector<float>& normal = indexedFaceSet->getNormal();
+
+        // DBG(faces.getNumberOfFaces());
+        // DBG(normal.size());
+
+        Vec3f n = { normal[iF * 3], normal[iF * 3 + 1], normal[iF * 3 + 2] };
+
+        fprintf(fp, "\tfacet normal %f %f %f\n", n.x, n.y, n.z);
+        fprintf(fp, "\t\touter loop\n");
+
+        // DBG(faces.getNumberOfVertices());
+        // DBG(indexedFaceSet->getCoord().size());
+        for (int v : {v1, v2, v3}) {
+          fprintf(fp, "\t\t\tvertex ");
+          vector<float>& coord = indexedFaceSet->getCoord();
+          float x = coord[3 * v],
+                y = coord[3 * v + 1],
+                z = coord[3 * v + 2];
+          fprintf(fp, "%f %f %f\n", x, y, z);
+        }
+        fprintf(fp, "\t\tendloop\n");
+        fprintf(fp, "\tendfacet\n");
+      }
+
+      fprintf(fp, "endsolid %s\n", filename);
       fclose(fp);
       success = true;
     }
-
+    // DBG(10)
     // } endif (all the conditions are satisfied)
 
   }
   return success;
+  #undef check
 }

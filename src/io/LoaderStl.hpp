@@ -5,7 +5,7 @@
 //
 // LoaderStl.hpp
 //
-// Written by: <Your Name>
+// Written by: Rundong He
 //
 // Software developed for the course
 // Digital Geometry Processing
@@ -47,6 +47,7 @@ class LoaderStl : public Loader {
 private:
 
   const static char* _ext;
+  bool parse_face(Tokenizer& tkn, Vec3f& n, Vec3f& v1, Vec3f& v2, Vec3f& v3);
 
 public:
 

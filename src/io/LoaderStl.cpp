@@ -5,7 +5,7 @@
 //
 // LoaderStl.cpp
 //
-// Written by: <Your Name>
+// Written by: Rundong He
 //
 // Software developed for the course
 // Digital Geometry Processing
@@ -44,10 +44,31 @@
 #include "wrl/Material.hpp"
 #include "wrl/IndexedFaceSet.hpp"
 
+// debugging
+#include <iostream>
+#define DBG(x) cout << #x << " = " << x << endl;
+
 // reference
 // https://en.wikipedia.org/wiki/STL_(file_format)
 
 const char* LoaderStl::_ext = "stl";
+
+bool LoaderStl::parse_face(Tokenizer& tkn, Vec3f& n, Vec3f& v1, Vec3f& v2, Vec3f& v3)
+{
+  if (not tkn.expecting("normal")) throw new StrException("expected token: \"normal\"");
+  if (not tkn.getVec3f(n)) throw new StrException("expected Vec3f as normal");
+  if (not tkn.expecting("outer")) throw new StrException("expected token: \"outer\"");
+  if (not tkn.expecting("loop")) throw new StrException("expected token: \"loop\"");
+  for (Vec3f* v : {&v1, &v2, &v3}) {
+    if (not tkn.expecting("vertex")) throw new StrException("expected token: \"vertex\"");
+    Vec3f tmp;
+    if (not tkn.getVec3f(tmp)) throw new StrException("expected Vec3f");
+    *v = tmp;
+  }
+  if (not tkn.expecting("endloop")) throw new StrException("expected token: \"endloop\"");
+  if (not tkn.expecting("endfacet")) throw new StrException("expected token: \"endfacet\"");
+  return true;
+}
 
 bool LoaderStl::load(const char* filename, SceneGraph& wrl) {
   bool success = false;
@@ -58,12 +79,11 @@ bool LoaderStl::load(const char* filename, SceneGraph& wrl) {
 
   FILE* fp = (FILE*)0;
   try {
-
     // open the file
     if(filename==(char*)0) throw new StrException("filename==null");
     fp = fopen(filename,"r");
     if(fp==(FILE*)0) throw new StrException("fp==(FILE*)0");
-
+    // DBG(2)
     // use the io/Tokenizer class to parse the input ascii file
 
     TokenizerFile tkn(fp);
@@ -74,14 +94,28 @@ bool LoaderStl::load(const char* filename, SceneGraph& wrl) {
       // TODO ...
 
       // create the scene graph structure :
+      // SceneGraph* scene_graph;
       // 1) the SceneGraph should have a single Shape node a child
+      Shape* shape = new Shape();
+      // scene_graph->addChild(shape);
+      wrl.addChild(shape);
       // 2) the Shape node should have an Appearance node in its appearance field
+      Appearance* appearance = new Appearance();
+      shape->setAppearance(appearance);
       // 3) the Appearance node should have a Material node in its material field
+      Material* material = new Material();
+      appearance->setMaterial(material);
       // 4) the Shape node should have an IndexedFaceSet node in its geometry node
+      IndexedFaceSet* indexed_face_set = new IndexedFaceSet();
+      shape->setGeometry(indexed_face_set);
 
       // from the IndexedFaceSet
       // 5) get references to the coordIndex, coord, and normal arrays
+      vector<int>& coordIndex = indexed_face_set->getCoordIndex(); 
+      vector<float>& coord = indexed_face_set->getCoord();
+      vector<float>& normal = indexed_face_set->getNormal();
       // 6) set the normalPerVertex variable to false (i.e., normals per face)  
+      indexed_face_set->setNormalPerVertex(false);
 
       // the file should contain a list of triangles in the following format
 
@@ -101,13 +135,31 @@ bool LoaderStl::load(const char* filename, SceneGraph& wrl) {
       // - if your method returns false
       //     throw an StrException explaining why the method failed
 
+      while (true) {
+        if (not tkn.get()) throw new StrException("expected content");
+        if (tkn.equals("endsolid")) break;
+        if (not tkn.equals("facet")) throw new StrException("expected token: \"facet\"");
+
+        Vec3f n, v1, v2, v3;
+        parse_face(tkn, n, v1, v2, v3);
+
+        for (Vec3f* v : {&v1, &v2, &v3}) {
+          coordIndex.push_back(coord.size() / 3);
+          coord.push_back(v->x);
+          coord.push_back(v->y);
+          coord.push_back(v->z);
+        }
+        coordIndex.push_back(-1);
+        for (float a : {n.x, n.y, n.z}) normal.push_back(a);
+      }
+      // DBG(10)
+      success = true;
     }
 
     // close the file (this statement may not be reached)
     fclose(fp);
     
-  } catch(StrException* e) { 
-    
+  } catch(StrException* e) {
     if(fp!=(FILE*)0) fclose(fp);
     fprintf(stderr,"ERROR | %s\n",e->what());
     delete e;

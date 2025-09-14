@@ -5,7 +5,7 @@
 //
 // SaverStl.hpp
 //
-// Written by: <Your Name>
+// Written by: Rundong He
 //
 // Software developed for the course
 // Digital Geometry Processing
